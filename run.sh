@@ -2,6 +2,7 @@
 
 # Let's run IGV so we can see what Graal is doing
 # IGV visualizes internal state of Graal
+# You can get what you need to run it from https://github.com/oracle/graal and https://github.com/graalvm/mx
 export PATH_TO_GRAAL_REPO=~/oracle/baseline/graal/
 export PATH_TO_JDK_11=~/.mx/jdks/jdk-11.0.20/
 (cd $PATH_TO_GRAAL_REPO/compiler && mx igv --jdkhome $PATH_TO_JDK_11 &)
@@ -37,7 +38,10 @@ export MAVEN=~/apache-maven-3.9.6/bin/mvn
 # Graal uses the "Sea of nodes" IR
 #   IR - Intermediate representation, how the compiler "sees" the code
 #       Meant to be a format that it "easy" to manipulate
-#       Fixed nodes - things happen, Floating nodes - data happens
+#       Code represented as a Graph with
+#           Fixed nodes - things happen
+#           Floating nodes - data happens
+#       Phase based optimization - Each Graph Transformation is a "Phase"
 #   Consider the second dump of GameOfLife.applyRules
 #       If node id=33 after parsing does the same work as If node id=13
 #       Graal figures it out and removes it eventually
@@ -50,7 +54,7 @@ export MAVEN=~/apache-maven-3.9.6/bin/mvn
 #    https://dl.acm.org/doi/10.1145/2542142.2542143 "An intermediate representation for speculative optimizations in a dynamic compiler"
 #    https://ssw.jku.at/General/Staff/GD/APPLC-2013-paper_12.pdf "Graal IR: An Extensible Declarative Intermediate Representation"
 #
-# Other Graal Topics: Individual phases (Inlining, Parital Escape Analysis)...
+# Other Graal Topics: Individual phases (Inlining, Parital Escape Analysis, Loop unrolling)...
 #
 # To get the dumps run:
 $JAVA_HOME/bin/javac GameOfLife.java
@@ -69,7 +73,7 @@ $JAVA_HOME/bin/java \
 #     CON: Slow, Virtual Call from each node to the next
 # Truffle magic!
 #     Truffle is a language implementation framework
-#         Uses annotations and code generation and speaks "Graal"
+#         Uses annotations and code generation, uses Graal to make things fast
 #     Each nodes keeps track of it's "specializations"
 #         "specializations" just means "I've been executed with this type before"
 #         e.g. JSAddNode ./graaljs/graal-js/src/com.oracle.truffle.js/src/com/oracle/truffle/js/nodes/binary/JSAddNode.java
@@ -91,17 +95,24 @@ $JAVA_HOME/bin/java \
 
 # Topic 3: Graal as an AOT compiler ==========================================================================
 #
-# JVM in the  cloud world
-#   JVM + micro services
-# Java without a JVM?
-#   AOT Java
-#   Closed world assumption
-# No room for Speculative Optimizations
-#   See dump of GameOfLife#getAliveNeighbours on JIT and AOT to compare
-# No room for reflection and dynamic class loading
+# The JVM is an awesome piece of engineering!
+#     Awesome for long running tasks (e.g. web server running for days)
+#     Not ideal for short tasks (CLI tools, FaaS, ...)
+#         Profiling overhead, interpreter is slow, ...
+#     The cloud changed the game, e.g. Running a web server on a powerful machine is
+#         Expensive when load is low
+#         Might not be enough when load is super high
+# Can we have Java without a JVM? Yes, AOT Compile JVM Bytecode - GraalVM Native Image
+#     Closed world assumption, Java can load code at runtime, AOT can't
+#     No room for Speculative Optimizations
+#         See dump of GameOfLife#getAliveNeighbours on JIT and AOT to compare
+#         Configure Graal to not speculate
 #
 # Ref:
 #   https://dl.acm.org/doi/10.1145/3360610 "Initialize once, start fast: application initialization at build time"
+#
+# Other Native Image Topics: Profile-guided optimizations, Points-to analysis, Heap Snapshoting, Binary size optimizations, ...
+#
 # To get the dumps run:
 $JAVA_HOME/bin/native-image \
     -H:Dump=:3 -H:PrintGraph=Network -H:MethodFilter='*GameOfLife.*'  \
@@ -112,20 +123,5 @@ $JAVA_HOME/bin/javac HelloWorld.java
 /usr/bin/time --format='>> Elapsed: %es, CPU Usage: %P, MAX RSS: %MkB' $JAVA_HOME/bin/java HelloWorld
 /usr/bin/time --format='>> Elapsed: %es, CPU Usage: %P, MAX RSS: %MkB' ./helloworld
 
+# Interesting stuff? Check out internship opportunities
 # https://www.graalvm.org/community/internship/
-
-# Q: Koju medjureprezentaciju koristi Graal?
-
-# Q: Koja optimizacija omogucuje JIT kompilaciju Truffle AST-eva?
-
-# Q: True/False: Spekulativne optimizacije omogucuju:
-#       a) Brzi startup AOT kompajliranog koda
-#       b) Brzi startup JIT kompajliranog koda
-#       c) Bolje optimizacije JIT kompajliranog koda
-#       d) Bolje optimizacije AOT kompajliranog koda
-
-# Q: Closed world assumption znaci
-#       a) Izvrsava se *minimalno*  onaj kod koji je kompajliran
-#       b) Izvrsava se *maksimalno* onaj kod koji je kompajliran
-#       c) Kompajliramo samo "hot" kod
-#       d) Kompajliramo sav kod koji je dostupan
